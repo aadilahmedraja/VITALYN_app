@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-label="MediCare-360 logo">
-  <circle cx="24" cy="24" r="23" fill="#1565c0"/>
-  <circle cx="24" cy="24" r="19.5" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.45"/>
-  <path d="M6 25h6l3-9 5 17 4-12 3 4h15" fill="none" stroke="#ffffff" stroke-width="3"
-        stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
