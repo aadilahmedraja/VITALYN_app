@@ -1,0 +1,36 @@
+{
+  "name": "Vitalyn — Predict. Prevent. Protect.",
+  "short_name": "Vitalyn",
+  "description": "AI-powered predictive health monitoring. Demonstration prototype, not a medical device.",
+  "id": "/",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b3c68",
+  "theme_color": "#0b3c68",
+  "categories": ["health", "medical", "lifestyle"],
+  "lang": "en",
+  "dir": "ltr",
+  "icons": [
+    { "src": "./assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Emergency SOS",
+      "short_name": "SOS",
+      "description": "Sound the emergency alarm and alert contacts",
+      "url": "./index.html#/sos",
+      "icons": [{ "src": "./assets/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Medication",
+      "short_name": "Meds",
+      "description": "Today's doses and reminders",
+      "url": "./index.html#/medication",
+      "icons": [{ "src": "./assets/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
