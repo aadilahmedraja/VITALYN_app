@@ -1,0 +1,761 @@
+/* ============================================================
+   Vitalyn — Care tools (medication reminders, SOS alarm, reports)
+   Layered on top of the existing app. Every value below comes from
+   the tokens already defined in style.css. Prefix: .vc-
+   ============================================================ */
+
+.vc-dock {
+  position: fixed;
+  right: var(--sp-6);
+  bottom: var(--sp-6);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sp-3);
+}
+
+.vc-launcher {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-5);
+  border: none;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--blue-deep), var(--blue-primary));
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  box-shadow: 0 8px 24px #0b3c6840;
+  transition: transform var(--dur-fast) var(--ease-standard);
+}
+.vc-launcher:hover { transform: translateY(-2px); }
+.vc-launcher:active { transform: scale(.97); }
+.vc-launcher-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--risk-moderate); flex-shrink: 0;
+}
+.vc-launcher-dot[hidden] { display: none; }
+
+/* ---------- overlay shell ---------- */
+.vc-overlay {
+  position: fixed; inset: 0; z-index: 70;
+  display: flex; flex-direction: column;
+  background: var(--bg-app);
+  animation: vcFade var(--dur-base) var(--ease-standard);
+}
+.vc-overlay[hidden] { display: none; }
+@keyframes vcFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+.vc-head {
+  display: flex; align-items: center; gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-6);
+  background: var(--navy-900);
+  color: #fff;
+  flex-shrink: 0;
+}
+.vc-head-title { font-family: var(--font-display); font-size: var(--fs-md); font-weight: 600; }
+.vc-head-sub { font-size: var(--fs-xs); color: #93b4d2; margin-top: 2px; }
+.vc-head-spacer { flex: 1; }
+.vc-close {
+  background: #17568c; border: none; color: #fff;
+  width: 34px; height: 34px; border-radius: var(--radius-sm);
+  font-size: var(--fs-md); line-height: 1;
+}
+.vc-close:hover { background: var(--blue-primary); }
+
+.vc-tabs {
+  display: flex; gap: var(--sp-1);
+  padding: 0 var(--sp-6);
+  background: var(--navy-900);
+  flex-shrink: 0;
+  /* Seven tabs do not fit a phone. Scroll them sideways rather than letting
+     the labels wrap and clip mid-word. */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+.vc-tabs::-webkit-scrollbar { display: none; }
+.vc-tab {
+  background: none; border: none; border-bottom: 2px solid transparent;
+  color: #c7dcef; font-family: var(--font-body); font-size: var(--fs-sm); font-weight: 600;
+  padding: var(--sp-3) var(--sp-4);
+  white-space: nowrap;          /* never break a label across two lines */
+  flex: 0 0 auto;               /* never squeeze a label narrower than its text */
+  scroll-snap-align: center;
+}
+.vc-tab[aria-selected="true"] { color: #fff; border-bottom-color: var(--blue-primary); }
+
+.vc-body {
+  flex: 1; overflow-y: auto;
+  padding: var(--sp-6);
+  max-width: var(--max-content-w); width: 100%; margin: 0 auto;
+}
+.vc-panel[hidden] { display: none; }
+
+/* ---------- shared bits ---------- */
+.vc-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-5);
+  box-shadow: var(--shadow-panel);
+}
+.vc-stack { display: flex; flex-direction: column; gap: var(--sp-4); }
+.vc-row { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+.vc-title { font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 600; }
+.vc-eyebrow {
+  font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .08em;
+  font-weight: 700; color: var(--text-tertiary);
+}
+.vc-muted { color: var(--text-secondary); font-size: var(--fs-sm); }
+.vc-note {
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+  border-left: 2px solid var(--border-medium);
+  padding-left: var(--sp-3); line-height: 1.6;
+}
+.vc-input, .vc-select {
+  background: var(--bg-inset); border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm); padding: var(--sp-3);
+  color: var(--text-primary); font-family: inherit; font-size: var(--fs-sm);
+  min-width: 0;
+}
+.vc-input:focus, .vc-select:focus { outline: 2px solid var(--blue-primary); outline-offset: 1px; }
+.vc-field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 120px; }
+.vc-label { font-size: var(--fs-xs); color: var(--text-secondary); font-weight: 600; }
+.vc-empty {
+  text-align: center; padding: var(--sp-10) var(--sp-4);
+  color: var(--text-tertiary); font-size: var(--fs-sm);
+  border: 1px dashed var(--border-medium); border-radius: var(--radius-md);
+}
+
+/* ---------- medication ---------- */
+.vc-next {
+  display: flex; align-items: center; gap: var(--sp-6);
+  background: linear-gradient(135deg, var(--navy-900), #14548f);
+  color: #fff; border-radius: var(--radius-lg); padding: var(--sp-6); flex-wrap: wrap;
+}
+.vc-next-clock {
+  font-family: var(--font-mono); font-size: var(--fs-3xl); font-weight: 600;
+  line-height: 1; font-variant-numeric: tabular-nums;
+}
+.vc-next-meta { display: flex; flex-direction: column; gap: 4px; }
+.vc-next-label { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .08em; color: #9ccbf7; font-weight: 700; }
+.vc-next-name { font-size: var(--fs-lg); font-family: var(--font-display); font-weight: 600; }
+.vc-next-sub { font-size: var(--fs-sm); color: #c7dcef; }
+
+.vc-dose {
+  display: flex; align-items: center; gap: var(--sp-4);
+  padding: var(--sp-4); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md); background: var(--bg-panel);
+}
+.vc-dose-time {
+  font-family: var(--font-mono); font-size: var(--fs-md); font-weight: 600;
+  min-width: 68px; font-variant-numeric: tabular-nums;
+}
+.vc-dose-body { flex: 1; min-width: 0; }
+.vc-dose-name { font-weight: 600; }
+.vc-dose-sub { font-size: var(--fs-xs); color: var(--text-tertiary); margin-top: 2px; }
+.vc-dose.is-due { border-color: var(--risk-moderate); background: var(--risk-moderate-bg); }
+.vc-dose.is-taken { opacity: .62; }
+.vc-dose.is-missed { border-color: var(--risk-critical); }
+
+.vc-pill {
+  padding: 3px var(--sp-3); border-radius: var(--radius-full);
+  font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+}
+.vc-pill-due { background: var(--risk-moderate-bg); color: var(--risk-moderate); }
+.vc-pill-taken { background: var(--risk-low-bg); color: var(--risk-low); }
+.vc-pill-missed { background: var(--risk-critical-bg); color: var(--risk-critical); }
+.vc-pill-upcoming { background: var(--blue-tint); color: var(--blue-ink); }
+
+/* ---------- emergency ---------- */
+.vc-sos-wrap { display: flex; flex-direction: column; align-items: center; gap: var(--sp-5); padding: var(--sp-6) 0; }
+.vc-sos-btn {
+  width: 190px; height: 190px; border-radius: 50%; border: none;
+  background: linear-gradient(145deg, #c62828, #8f1b1b);
+  color: #fff; font-family: var(--font-display); font-size: var(--fs-xl);
+  font-weight: 700; letter-spacing: .06em;
+  box-shadow: 0 12px 44px #a01f1f5c;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  position: relative;
+}
+.vc-sos-btn:active { transform: scale(.97); }
+.vc-sos-btn small { font-size: var(--fs-xs); font-weight: 500; letter-spacing: .02em; }
+.vc-sos-ring {
+  position: absolute; inset: -12px; border: 2px solid #c6282866; border-radius: 50%;
+  animation: vcPulse 2.2s ease-out infinite;
+}
+@keyframes vcPulse { from { opacity: .85; transform: scale(.92); } to { opacity: 0; transform: scale(1.22); } }
+
+.vc-alarm-live {
+  position: fixed; inset: 0; z-index: 90;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--sp-6); text-align: center; padding: var(--sp-6);
+  background: #7f1d1d; color: #fff;
+  animation: vcFlash 1s steps(1, end) infinite;
+}
+.vc-alarm-live[hidden] { display: none; }
+@keyframes vcFlash { 0%, 49% { background: #7f1d1d; } 50%, 100% { background: #c62828; } }
+.vc-alarm-title { font-family: var(--font-display); font-size: var(--fs-3xl); font-weight: 700; letter-spacing: .04em; }
+.vc-alarm-sub { font-size: var(--fs-md); max-width: 30ch; }
+.vc-alarm-stop {
+  background: #fff; color: #7f1d1d; border: none;
+  padding: var(--sp-4) var(--sp-10); border-radius: var(--radius-full);
+  font-family: var(--font-body); font-size: var(--fs-md); font-weight: 700;
+}
+.vc-alarm-count { font-family: var(--font-mono); font-size: var(--fs-2xl); font-variant-numeric: tabular-nums; }
+
+/* ---------- reports ---------- */
+.vc-folders { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--sp-3); }
+.vc-folder {
+  text-align: left; background: var(--bg-panel);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+  padding: var(--sp-4); display: flex; flex-direction: column; gap: 2px;
+}
+.vc-folder:hover { background: var(--bg-panel-raised); }
+.vc-folder[aria-current="true"] { border-color: var(--blue-primary); background: var(--blue-tint); }
+.vc-folder-name { font-weight: 600; font-size: var(--fs-sm); }
+.vc-folder-count { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+.vc-drop {
+  border: 2px dashed var(--border-medium); border-radius: var(--radius-lg);
+  padding: var(--sp-8); text-align: center; color: var(--text-secondary);
+  font-size: var(--fs-sm); background: var(--bg-inset);
+}
+.vc-drop.is-over { border-color: var(--blue-primary); background: var(--blue-tint); color: var(--blue-ink); }
+
+.vc-file {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm); background: var(--bg-panel);
+}
+.vc-file-ext {
+  width: 40px; height: 40px; border-radius: var(--radius-sm); flex-shrink: 0;
+  background: var(--blue-tint); color: var(--blue-ink);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em;
+}
+.vc-file-body { flex: 1; min-width: 0; }
+.vc-file-name { font-size: var(--fs-sm); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vc-file-meta { font-size: var(--fs-xs); color: var(--text-tertiary); margin-top: 2px; }
+
+.vc-btn {
+  border: 1px solid transparent; border-radius: var(--radius-md);
+  padding: var(--sp-2) var(--sp-4); font-family: var(--font-body);
+  font-size: var(--fs-sm); font-weight: 600;
+}
+.vc-btn-primary { background: linear-gradient(135deg, var(--blue-deep), var(--blue-primary)); color: #fff; }
+.vc-btn-ghost { background: var(--bg-panel-raised); color: var(--text-primary); border-color: var(--border-medium); }
+.vc-btn-ghost:hover { background: var(--bg-panel-hover); }
+.vc-btn-danger { background: var(--risk-critical-bg); color: var(--risk-critical); border-color: transparent; }
+.vc-btn-sm { padding: 4px var(--sp-3); font-size: var(--fs-xs); }
+
+.vc-bar { height: 6px; border-radius: var(--radius-full); background: var(--bg-inset); overflow: hidden; }
+.vc-bar-fill { height: 100%; background: linear-gradient(90deg, var(--blue-deep), var(--blue-primary)); }
+
+.vc-toast {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: var(--sp-8); z-index: 95;
+  background: var(--navy-900); color: #fff;
+  padding: var(--sp-3) var(--sp-5); border-radius: var(--radius-full);
+  font-size: var(--fs-sm); box-shadow: var(--shadow-panel);
+}
+.vc-toast[hidden] { display: none; }
+
+@media (width <= 900px) {
+  .vc-dock { bottom: calc(var(--bottomnav-h) + var(--sp-4)); right: var(--sp-4); }
+  .vc-body, .vc-head { padding-left: var(--sp-4); padding-right: var(--sp-4); }
+  .vc-tabs { padding-left: var(--sp-3); padding-right: var(--sp-3); }
+  .vc-tab { padding-left: var(--sp-3); padding-right: var(--sp-3); }
+  .vc-next-clock { font-size: var(--fs-2xl); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vc-sos-ring, .vc-alarm-live { animation: none; }
+  .vc-alarm-live { background: #b3211f; }
+}
+
+/* ---------- compact alarm bar ----------
+   Used when the siren is fired from the app's own SOS controls, so the
+   app's screens stay visible instead of being covered by the full state. */
+.vc-alarm-bar {
+  position: fixed; top: var(--sp-4); left: 50%; transform: translateX(-50%);
+  z-index: 95; display: flex; align-items: center; gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-5);
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, #c62828, #8f1b1b);
+  color: #fff; box-shadow: 0 10px 30px #8f1b1b59;
+  max-width: calc(100vw - var(--sp-8));
+}
+.vc-alarm-bar[hidden] { display: none; }
+.vc-alarm-bar-pulse {
+  width: 10px; height: 10px; border-radius: 50%; background: #fff; flex-shrink: 0;
+  animation: vcBlink 1s steps(1, end) infinite;
+}
+@keyframes vcBlink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: .25; } }
+.vc-alarm-bar-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.vc-alarm-bar-title { font-size: var(--fs-sm); font-weight: 700; }
+.vc-alarm-bar-sub { font-size: var(--fs-xs); opacity: .92; font-variant-numeric: tabular-nums; }
+.vc-alarm-bar-stop {
+  background: #fff; color: #8f1b1b; border: none; flex-shrink: 0;
+  padding: var(--sp-2) var(--sp-4); border-radius: var(--radius-full);
+  font-family: var(--font-body); font-size: var(--fs-sm); font-weight: 700;
+}
+@media (prefers-reduced-motion: reduce) { .vc-alarm-bar-pulse { animation: none; } }
+
+/* ---------- install prompt ---------- */
+.vc-install {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: var(--sp-6); z-index: 80;
+  display: flex; align-items: center; gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-lg);
+  background: var(--navy-900); color: #fff;
+  box-shadow: 0 12px 34px #0b3c6866;
+  max-width: calc(100vw - var(--sp-8));
+}
+.vc-install[hidden] { display: none; }
+.vc-install img { width: 34px; height: 34px; border-radius: 8px; background: #fff; padding: 3px; flex-shrink: 0; }
+.vc-install-text { display: flex; flex-direction: column; line-height: 1.3; min-width: 0; }
+.vc-install-title { font-size: var(--fs-sm); font-weight: 700; }
+.vc-install-sub { font-size: var(--fs-xs); color: #c7dcef; }
+.vc-install-go {
+  background: var(--blue-primary); color: #fff; border: none; flex-shrink: 0;
+  padding: var(--sp-2) var(--sp-4); border-radius: var(--radius-full);
+  font-family: var(--font-body); font-size: var(--fs-sm); font-weight: 700;
+}
+.vc-install-x { background: none; border: none; color: #93b4d2; font-size: var(--fs-md); padding: 0 var(--sp-2); }
+@media (width <= 900px) { .vc-install { bottom: calc(var(--bottomnav-h) + var(--sp-3)); } }
+
+/* ---------- health score ---------- */
+.vc-score-wrap { display: flex; align-items: center; gap: var(--sp-8); flex-wrap: wrap; justify-content: center; }
+.vc-score-dial { position: relative; width: 210px; height: 210px; flex-shrink: 0; }
+.vc-score-dial svg { transform: rotate(-90deg); width: 100%; height: 100%; }
+.vc-score-mid {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2px;
+}
+.vc-score-num { font-family: var(--font-display); font-size: 3.1rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.vc-score-of { font-size: var(--fs-xs); color: var(--text-tertiary); font-weight: 600; }
+.vc-score-band { font-size: var(--fs-md); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.vc-score-legend { display: flex; flex-direction: column; gap: var(--sp-2); }
+.vc-legend-row { display: flex; align-items: center; gap: var(--sp-3); font-size: var(--fs-sm); }
+.vc-legend-row.is-current { font-weight: 700; }
+.vc-legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.vc-legend-range { color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+
+/* ---------- AI analysis ---------- */
+.vc-vitals-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-3); }
+.vc-vital {
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+  padding: var(--sp-4); background: var(--bg-panel);
+}
+.vc-vital-label { font-size: var(--fs-xs); font-weight: 700; letter-spacing: .06em; color: var(--text-tertiary); text-transform: uppercase; }
+.vc-vital-value { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 700; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.vc-vital-unit { font-size: var(--fs-xs); color: var(--text-tertiary); font-weight: 500; margin-left: 3px; }
+.vc-vital-note { font-size: var(--fs-xs); margin-top: 4px; font-weight: 600; }
+.vc-vital.is-out { border-color: currentColor; }
+
+.vc-insight {
+  border-left: 3px solid var(--blue-primary);
+  background: var(--blue-tint); border-radius: var(--radius-md);
+  padding: var(--sp-4) var(--sp-5);
+}
+.vc-insight-head { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-2); }
+.vc-insight-title { font-weight: 700; font-size: var(--fs-sm); }
+.vc-insight-body { font-size: var(--fs-sm); line-height: 1.65; color: var(--text-primary); }
+.vc-insight-body li { margin: var(--sp-1) 0 var(--sp-1) var(--sp-4); }
+.vc-risk-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px var(--sp-3); border-radius: var(--radius-full);
+  font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+}
+
+/* ---------- health passport ---------- */
+.vc-passport {
+  border-radius: var(--radius-lg); overflow: hidden;
+  border: 1px solid var(--border-subtle); box-shadow: var(--shadow-panel);
+  background: var(--bg-panel);
+}
+.vc-pp-top {
+  background: linear-gradient(135deg, var(--navy-900), #14548f);
+  color: #fff; padding: var(--sp-5); display: flex; align-items: center; gap: var(--sp-4);
+}
+.vc-pp-photo {
+  width: 72px; height: 72px; border-radius: var(--radius-md); flex-shrink: 0;
+  background: #17568c; border: 2px solid #ffffff59; object-fit: cover;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 700; color: #fff;
+}
+.vc-pp-name { font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 700; }
+.vc-pp-meta { font-size: var(--fs-sm); color: #c7dcef; margin-top: 2px; }
+.vc-pp-id { font-family: var(--font-mono); font-size: var(--fs-xs); color: #9ccbf7; margin-top: 4px; letter-spacing: .04em; }
+.vc-pp-blood {
+  margin-left: auto; text-align: center; background: #ffffff1f;
+  border: 1px solid #ffffff40; border-radius: var(--radius-md); padding: var(--sp-3) var(--sp-4);
+}
+.vc-pp-blood-val { font-family: var(--font-display); font-size: var(--fs-2xl); font-weight: 700; line-height: 1; }
+.vc-pp-blood-lbl { font-size: 9px; letter-spacing: .1em; color: #eaf3fb; text-transform: uppercase; margin-top: 3px; }
+
+.vc-pp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1px; background: var(--border-subtle); }
+.vc-pp-cell { background: var(--bg-panel); padding: var(--sp-4) var(--sp-5); }
+.vc-pp-cell h4 {
+  font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text-tertiary); font-weight: 700; margin-bottom: var(--sp-2);
+}
+.vc-pp-cell.is-alert h4 { color: var(--risk-critical); }
+.vc-pp-list { display: flex; flex-direction: column; gap: 5px; font-size: var(--fs-sm); }
+.vc-pp-tag {
+  display: inline-block; padding: 3px var(--sp-3); border-radius: var(--radius-full);
+  font-size: var(--fs-xs); font-weight: 600; margin: 2px 4px 2px 0;
+  background: var(--bg-inset); border: 1px solid var(--border-medium);
+}
+.vc-pp-tag.is-allergy { background: var(--risk-critical-bg); color: var(--risk-critical); border-color: transparent; }
+
+.vc-qr-panel { display: flex; align-items: center; gap: var(--sp-6); padding: var(--sp-5); flex-wrap: wrap; border-top: 1px solid var(--border-subtle); }
+.vc-qr-box { background: #fff; padding: var(--sp-3); border-radius: var(--radius-md); border: 1px solid var(--border-subtle); line-height: 0; }
+.vc-qr-box svg { display: block; width: 220px; height: 220px; }
+.vc-qr-text { flex: 1; min-width: 190px; }
+
+.vc-scan {
+  position: fixed; inset: 0; z-index: 88; overflow-y: auto;
+  background: #0b3c68f2; padding: var(--sp-6);
+  display: flex; align-items: flex-start; justify-content: center;
+}
+.vc-scan[hidden] { display: none; }
+.vc-scan-card { background: var(--bg-panel); border-radius: var(--radius-lg); max-width: 560px; width: 100%; overflow: hidden; }
+.vc-scan-head { background: var(--risk-critical); color: #fff; padding: var(--sp-4) var(--sp-5); }
+.vc-scan-head h3 { font-family: var(--font-display); font-size: var(--fs-md); font-weight: 700; }
+.vc-scan-head p { font-size: var(--fs-xs); opacity: .95; margin-top: 2px; }
+
+/* ---------- wearable device panel ---------- */
+.vc-dev-hero {
+  display: flex; align-items: center; gap: var(--sp-6); flex-wrap: wrap;
+  background: linear-gradient(135deg, var(--navy-900), #14548f);
+  color: #fff; border-radius: var(--radius-lg); padding: var(--sp-6);
+}
+.vc-dev-id { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 3px; }
+.vc-dev-name { font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 600; }
+.vc-dev-model { font-size: var(--fs-sm); color: #c7dcef; }
+.vc-dev-state { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); font-weight: 600; margin-top: 2px; }
+.vc-dev-led { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; background: #93b4d2; }
+.vc-dev-led.on { background: #4ade80; box-shadow: 0 0 0 3px #4ade8033; }
+.vc-dev-led.warn { background: #fbbf24; animation: vcBlink 1s steps(1,end) infinite; }
+.vc-dev-led.err { background: #ff8a8a; }
+
+/* battery as a ring so it reads at a glance */
+.vc-batt { position: relative; width: 84px; height: 84px; flex-shrink: 0; }
+.vc-batt svg { transform: rotate(-90deg); }
+.vc-batt-track { stroke: #ffffff2e; }
+.vc-batt-fill { stroke: #4ade80; transition: stroke-dashoffset var(--dur-slow) var(--ease-standard); }
+.vc-batt-fill.low { stroke: #fbbf24; }
+.vc-batt-fill.crit { stroke: #ff8a8a; }
+.vc-batt-num {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; line-height: 1;
+}
+.vc-batt-pct { font-family: var(--font-mono); font-size: var(--fs-md); font-weight: 600; }
+.vc-batt-cap { font-size: 9px; letter-spacing: .08em; color: #9ccbf7; margin-top: 2px; }
+
+.vc-live { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--sp-3); }
+.vc-live-tile {
+  background: var(--bg-panel); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md); padding: var(--sp-4);
+}
+.vc-live-label {
+  font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .07em;
+  font-weight: 700; color: var(--text-tertiary);
+}
+.vc-live-val {
+  font-family: var(--font-mono); font-size: var(--fs-xl); font-weight: 600;
+  margin-top: var(--sp-2); font-variant-numeric: tabular-nums;
+}
+.vc-live-val .u { font-size: var(--fs-sm); color: var(--text-tertiary); margin-left: 3px; font-family: var(--font-body); }
+.vc-live-tile.stale .vc-live-val { color: var(--text-tertiary); }
+.vc-live-none { color: var(--text-tertiary); font-family: var(--font-body); font-size: var(--fs-md); }
+
+.vc-spark { display: block; width: 100%; height: 42px; margin-top: var(--sp-2); }
+.vc-spark path { fill: none; stroke: var(--blue-primary); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.vc-unsupported {
+  border-left: 3px solid var(--risk-moderate); background: var(--risk-moderate-bg);
+  padding: var(--sp-4); border-radius: var(--radius-sm);
+  font-size: var(--fs-sm); color: var(--text-primary); line-height: 1.6;
+}
+
+/* ---------- device status badge ----------
+   A round badge that sits directly above the Care tools button, so it never
+   covers page content. Battery reads as a ring; the dot carries link state. */
+.vc-devchip {
+  position: relative;
+  width: 54px; height: 54px; padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-panel);
+  display: flex; align-items: center; justify-content: center;
+}
+.vc-devchip[hidden] { display: none; }
+.vc-devchip:active { transform: scale(.95); }
+
+.vc-devchip svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.vc-devchip-track { stroke: var(--bg-inset); }
+.vc-devchip-fill  { stroke: var(--risk-low); transition: stroke-dashoffset var(--dur-slow) var(--ease-standard); }
+.vc-devchip-fill.low  { stroke: var(--risk-moderate); }
+.vc-devchip-fill.crit { stroke: var(--risk-critical); }
+
+.vc-devchip-pct {
+  font-family: var(--font-mono); font-size: 13px; font-weight: 700;
+  color: var(--text-primary); line-height: 1; font-variant-numeric: tabular-nums;
+}
+.vc-devchip-idle { width: 20px; height: 20px; opacity: .5; }
+
+/* link state, as a dot on the rim */
+.vc-devchip-led {
+  position: absolute; top: 2px; right: 2px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--text-tertiary);
+  border: 2px solid var(--bg-panel);
+}
+.vc-devchip-led.on   { background: var(--risk-low); }
+.vc-devchip-led.warn { background: var(--risk-moderate); animation: vcBlink 1s steps(1,end) infinite; }
+.vc-devchip-led.err  { background: var(--risk-critical); }
+
+@media (prefers-reduced-motion: reduce) { .vc-devchip-led.warn { animation: none; } }
+
+/* ---------- wearable device panel ---------- */
+.vc-dev-hero {
+  display: flex; align-items: center; gap: var(--sp-6); flex-wrap: wrap;
+  background: linear-gradient(135deg, var(--navy-900), #14548f);
+  color: #fff; border-radius: var(--radius-lg); padding: var(--sp-6);
+}
+.vc-dev-id { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 3px; }
+.vc-dev-name { font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 600; }
+.vc-dev-model { font-size: var(--fs-sm); color: #c7dcef; }
+.vc-dev-state { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); font-weight: 600; margin-top: 2px; }
+.vc-dev-led { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; background: #93b4d2; }
+.vc-dev-led.on { background: #4ade80; box-shadow: 0 0 0 3px #4ade8033; }
+.vc-dev-led.warn { background: #fbbf24; animation: vcBlink 1s steps(1,end) infinite; }
+.vc-dev-led.err { background: #ff8a8a; }
+
+/* battery as a ring so it reads at a glance */
+.vc-batt { position: relative; width: 84px; height: 84px; flex-shrink: 0; }
+.vc-batt svg { transform: rotate(-90deg); }
+.vc-batt-track { stroke: #ffffff2e; }
+.vc-batt-fill { stroke: #4ade80; transition: stroke-dashoffset var(--dur-slow) var(--ease-standard); }
+.vc-batt-fill.low { stroke: #fbbf24; }
+.vc-batt-fill.crit { stroke: #ff8a8a; }
+.vc-batt-num {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; line-height: 1;
+}
+.vc-batt-pct { font-family: var(--font-mono); font-size: var(--fs-md); font-weight: 600; }
+.vc-batt-cap { font-size: 9px; letter-spacing: .08em; color: #9ccbf7; margin-top: 2px; }
+
+.vc-live { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--sp-3); }
+.vc-live-tile {
+  background: var(--bg-panel); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md); padding: var(--sp-4);
+}
+.vc-live-label {
+  font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .07em;
+  font-weight: 700; color: var(--text-tertiary);
+}
+.vc-live-val {
+  font-family: var(--font-mono); font-size: var(--fs-xl); font-weight: 600;
+  margin-top: var(--sp-2); font-variant-numeric: tabular-nums;
+}
+.vc-live-val .u { font-size: var(--fs-sm); color: var(--text-tertiary); margin-left: 3px; font-family: var(--font-body); }
+.vc-live-tile.stale .vc-live-val { color: var(--text-tertiary); }
+.vc-live-none { color: var(--text-tertiary); font-family: var(--font-body); font-size: var(--fs-md); }
+
+.vc-spark { display: block; width: 100%; height: 42px; margin-top: var(--sp-2); }
+.vc-spark path { fill: none; stroke: var(--blue-primary); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.vc-unsupported {
+  border-left: 3px solid var(--risk-moderate); background: var(--risk-moderate-bg);
+  padding: var(--sp-4); border-radius: var(--radius-sm);
+  font-size: var(--fs-sm); color: var(--text-primary); line-height: 1.6;
+}
+
+
+/* ---------- who is using the app ----------
+   Vitalyn is used by four different people with different needs. The role is
+   chosen once after sign-in and can be switched from the Care tools header. */
+.vc-role-pick {
+  position: fixed; inset: 0; z-index: 88;
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--sp-5);
+  background: #0b3c68f2;
+}
+.vc-role-pick[hidden] { display: none; }
+.vc-role-card {
+  background: var(--bg-panel); border-radius: var(--radius-lg);
+  padding: var(--sp-6); width: 100%; max-width: 460px;
+  max-height: 88vh; overflow-y: auto;
+  box-shadow: 0 24px 60px #04203a80;
+}
+.vc-role-title {
+  font-family: var(--font-display); font-size: var(--fs-xl);
+  font-weight: 700; color: var(--text-primary);
+}
+.vc-role-sub { font-size: var(--fs-sm); color: var(--text-secondary); margin-top: var(--sp-2); }
+.vc-role-list { display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-5); }
+.vc-role-opt {
+  display: flex; align-items: flex-start; gap: var(--sp-4);
+  padding: var(--sp-4); text-align: left; width: 100%;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+  background: var(--bg-panel); font-family: var(--font-body);
+}
+.vc-role-opt:hover { background: var(--bg-panel-raised); border-color: var(--blue-primary); }
+.vc-role-opt[aria-current="true"] { border-color: var(--blue-primary); background: var(--blue-tint); }
+.vc-role-ic {
+  width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+  background: var(--blue-tint); color: var(--blue-ink);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: var(--fs-sm);
+}
+.vc-role-txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.vc-role-name { font-size: var(--fs-base); font-weight: 700; color: var(--text-primary); }
+.vc-role-blurb { font-size: var(--fs-xs); color: var(--text-secondary); line-height: 1.5; }
+
+/* the badge in the Care tools header */
+.vc-role-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px var(--sp-3); border-radius: var(--radius-full);
+  background: #17568c; color: #fff; border: 1px solid #2e6a9e;
+  font-family: var(--font-body); font-size: var(--fs-xs); font-weight: 700;
+  white-space: nowrap;
+}
+.vc-role-badge:hover { background: var(--blue-primary); }
+
+.vc-role-note {
+  border-left: 3px solid var(--blue-primary);
+  background: var(--blue-tint);
+  padding: var(--sp-3) var(--sp-4); border-radius: var(--radius-sm);
+  font-size: var(--fs-xs); color: var(--text-primary); line-height: 1.6;
+}
+
+/* ---------- role badge on the dashboard ----------
+   Sits in the same dock as the wearable badge so it never covers content,
+   and is reachable without opening Care tools. */
+.vc-rolechip {
+  position: relative;
+  width: 54px; height: 54px; padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-panel);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 1px;
+}
+.vc-rolechip[hidden] { display: none; }
+.vc-rolechip:active { transform: scale(.95); }
+.vc-rolechip-ini {
+  font-family: var(--font-body); font-size: 14px; font-weight: 800;
+  color: var(--blue-primary); line-height: 1;
+}
+.vc-rolechip-cap {
+  font-size: 7.5px; letter-spacing: .02em; font-weight: 700;
+  color: var(--text-tertiary); line-height: 1; text-transform: uppercase;
+}
+.vc-rolechip-edit {
+  position: absolute; bottom: -1px; right: -1px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--blue-primary); color: #fff;
+  border: 2px solid var(--bg-panel);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; line-height: 1;
+}
+
+/* ---------- who the emergency message reached ---------- */
+.vc-alarm-report {
+  display: flex; flex-direction: column; gap: 6px;
+  width: 100%; max-width: 340px;
+  font-size: var(--fs-sm);
+}
+.vc-alarm-row {
+  display: flex; justify-content: space-between; gap: var(--sp-4);
+  background: #ffffff26; border-radius: var(--radius-sm);
+  padding: 6px var(--sp-3);
+}
+.vc-contact {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+}
+.vc-contact-body { flex: 1; min-width: 0; }
+.vc-contact-name { font-size: var(--fs-sm); font-weight: 700; }
+.vc-contact-num { font-size: var(--fs-xs); color: var(--text-tertiary); font-family: var(--font-mono); }
+.vc-msg-preview {
+  font-family: var(--font-mono); font-size: 11px; line-height: 1.7;
+  white-space: pre-wrap; color: var(--text-secondary);
+  background: var(--bg-inset); border-radius: var(--radius-sm); padding: var(--sp-3);
+}
+
+/* ---------- reading outside the doctor's care plan ---------- */
+.vc-live-tile.breach { border-color: var(--risk-critical); background: var(--risk-critical-bg); }
+.vc-live-tile.breach .vc-live-val { color: var(--risk-critical); }
+.vc-breach {
+  margin-top: var(--sp-2); font-size: var(--fs-xs);
+  font-weight: 700; color: var(--risk-critical);
+}
+
+/* ---------- care plan: one block per vital, low and high paired ---------- */
+.vc-limit {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-2) var(--sp-3);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--border-subtle);
+}
+.vc-limit:first-of-type { border-top: none; padding-top: 0; }
+.vc-limit-head {
+  grid-column: 1 / -1;
+  display: flex; align-items: baseline; gap: var(--sp-2);
+}
+.vc-limit-name { font-size: var(--fs-base); font-weight: 700; color: var(--text-primary); }
+.vc-limit-unit { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.vc-limit-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.vc-limit-cell .vc-input { width: 100%; text-align: center; font-family: var(--font-mono); font-size: var(--fs-md); }
+.vc-limit-cell .vc-input:disabled { opacity: .7; background: var(--bg-panel-raised); }
+
+/* ---------- role chooser on the sign-in screen ----------
+   Injected into the React auth card, so the role is chosen before login
+   rather than in a popup afterwards. */
+.vc-authrole {
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--border-subtle);
+}
+.vc-authrole-title {
+  font-size: var(--fs-xs); font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-tertiary);
+  margin-bottom: var(--sp-3);
+}
+.vc-authrole-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+.vc-authrole-opt {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: var(--sp-3) var(--sp-2);
+  border: 1px solid var(--border-medium); border-radius: var(--radius-md);
+  background: var(--bg-panel); font-family: var(--font-body); text-align: center;
+}
+.vc-authrole-opt:hover { border-color: var(--blue-primary); background: var(--bg-panel-raised); }
+.vc-authrole-opt[aria-pressed="true"] {
+  border-color: var(--blue-primary); background: var(--blue-tint);
+  box-shadow: inset 0 0 0 1px var(--blue-primary);
+}
+.vc-authrole-ini {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--blue-tint); color: var(--blue-ink);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800;
+}
+.vc-authrole-opt[aria-pressed="true"] .vc-authrole-ini { background: var(--blue-primary); color: #fff; }
+.vc-authrole-name { font-size: var(--fs-xs); font-weight: 700; color: var(--text-primary); }
+.vc-authrole-hint { font-size: var(--fs-xs); color: var(--text-tertiary); margin-top: var(--sp-3); }
